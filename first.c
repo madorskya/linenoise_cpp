@@ -5,56 +5,49 @@
 
 FILE* log_file;
 
+// menu structure record
+node_record nr[] = 
+{
+	{0, "", ""}, 
+		{1, "settings", "operation"},
+			{2, "write", "what"},
+				{3, "([0-9]+)", "address"},
+					{4, "([0-9]+)", "data"},
+			{2, "wrong", ""},
+				{3, "stuff", ""},
+		{1, "reset", ""},
+		{1, "prbs", "pattern"},
+			{2, "7", ""},
+			{2, "15", ""},
+			{2, "31", ""},
+	{-1, "", ""} // end marker
+};
+
+menu_tree_t * menu_tree; // make menu tree global for now
+char res[MAX_CMD_LENGTH];
+
 void completion(const char *buf, linenoiseCompletions *lc) 
 {
-	fprintf (log_file, "buf: %s\n", buf);
-	fflush  (log_file);
+//	fprintf (log_file, "buf: %s\n", buf);
+//	fflush  (log_file);
 
-	if (!strncasecmp(buf,"settings w", 10)) 
-	{
-        linenoiseAddCompletion(lc,"settings write");
-        linenoiseAddCompletion(lc,"settings wrong");
-    }
-	else
-    if (!strncasecmp(buf,"settings r", 10)) 
-	{
-        linenoiseAddCompletion(lc,"settings read");
-        linenoiseAddCompletion(lc,"settings reset");
-    }
-	else
-    if (buf[0] == 's') 
-	{
-        linenoiseAddCompletion(lc,"settings");
-    }
-	else
-    if (buf[0] == 'r') 
-	{
-        linenoiseAddCompletion(lc,"reset ");
-    }
-	else
-    if (buf[0] == 'p') 
-	{
-        linenoiseAddCompletion(lc,"prbs");
-        linenoiseAddCompletion(lc,"prbs 7");
-        linenoiseAddCompletion(lc,"prbs 15");
-        linenoiseAddCompletion(lc,"prbs 23");
-        linenoiseAddCompletion(lc,"prbs 31");
-        linenoiseAddCompletion(lc,"prbs read");
-    }
+	// scan the tree, find matches
+	vector<string> matches = menu_tree->find_matches(string(buf));	
+
+	// add all matches as possible completions
+	for (std::vector<string>::iterator it = matches.begin() ; it != matches.end(); ++it)
+        linenoiseAddCompletion(lc, it->c_str());
 }
 
-char *hints(const char *buf, int *color, int *bold) {
-    if (!strcasecmp(buf,"settings")) 
+char *hints(const char *buf, int *color, int *bold) 
+{
+	string mhint = menu_tree->find_hints (string(buf));
+    if (mhint.size() > 0) 
 	{
         *color = 35;
-        *bold = 0;
-        return (char*) " read|write";
-    }
-    if (!strcasecmp(buf,"prbs")) 
-	{
-        *color = 35;
-        *bold = 0;
-        return (char*) " read|7|15|23|31";
+        *bold = 1;
+        strcpy(res, mhint.c_str());
+		return res;
     }
     return NULL;
 }
@@ -63,7 +56,11 @@ int main(int argc, char **argv) {
     char *line;
     char *prgname = argv[0];
 
-	log_file = fopen ("log.txt", "w");
+//	log_file = fopen ("log.txt", "w");
+
+	// construct menu tree
+	menu_tree = new menu_tree_t(nr);
+	menu_tree->print();
 
     /* Parse options, with --multiline we enable multi line editing. */
     while(argc > 1) {
