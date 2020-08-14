@@ -22,6 +22,11 @@ void cb3 (string cmd)
 };
 
 // menu structure record
+// record structure:
+// field 1: number of argument in command line that the user is typing
+// field 2: string used for matching to user-typed input. Supports Regex
+// field 3: hint for the NEXT argument (not the one currently being typed)
+// field 4: pointer to callback function, or NULL if no callback
 node_record nr[] = 
 {
 	{0, "settings", "operation", NULL},
