@@ -12,13 +12,13 @@ node_record nr[] =
 	{1, 	"write", "address"},
 	{2, 		"([0-9a-fx]+)", "data"},
 	{3, 			"([0-9a-fx]+)", "<Enter>"},
-	{1, 	"wrong", ""},
-	{2, 		"stuff", ""},
-	{0, "reset", ""},
+	{1, 	"wrong", "<Enter>"},
+	{2, 		"stuff", "<Enter>"},
+	{0, "reset", "<Enter>"},
 	{0, "prbs", "pattern"},
-	{1, 	"7", ""},
-	{1, 	"15", ""},
-	{1, 	"31", ""},
+	{1, 	"7", "<Enter>"},
+	{1, 	"15", "<Enter>"},
+	{1, 	"31", "<Enter>"},
 	{-1, "", ""} // end marker
 };
 

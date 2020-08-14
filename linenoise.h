@@ -100,6 +100,7 @@ class menu_tree_t
 		vector <string> fld;
 		vector <string> v;
 		string matching_records; // list of matching fields
+		string hints; // returned hints
 
 		vector <string> find_matches (string pat)
 		{
@@ -169,7 +170,61 @@ class menu_tree_t
 
 		string find_hints (string pat)
 		{
-			return pat;
+			boost::trim (pat);
+			fld.clear();
+			hints.clear();
+			int last_top_level = 0;
+			int res;
+
+			boost::split(fld, pat, boost::is_any_of(" ")); // split into fields
+			size_t fld_size = fld.size();
+
+			for (size_t i = 0; i < fld.size(); i++) // i = field in pat, aka menu level
+			{
+				// i is also tree branch level
+				bool inside_branch = false;
+				// scan all records at level i
+				for (int j = last_top_level; ; j++) // j = nr record number
+				{
+					if (nr[j].level == -1) // last record, stop
+						break;
+
+					if (nr[j].level == (int)i) // correct level
+					{
+						inside_branch = true; // remember that we're inside correct branch
+						// try matching user's input
+						// if the number of fields is more than this level, require exact match
+						if (fld_size-1 > i)
+						{
+							if ((res = exact_match_regex (fld[i], nr[j].data))) // pat field matches record
+							{
+								// found exact match in non-last field, more fields to process
+								// remember number
+								last_top_level = j;
+								// can quit loop now
+								break;
+							}
+						}
+						else
+						{
+							// last level to analyze
+							// fld[i] may contain partial match
+							if ((res = exact_match_regex (fld[i], nr[j].data)))
+							{
+								// construct hint
+								hints = nr[j].hint;
+								return hints; // can get out immediately
+							}
+						}
+					}
+					else
+					{
+						// stop if getting out of branch to lower level
+						if ((nr[j].level < (int)i) && inside_branch) break;
+					}
+				}
+			}
+			return hints;
 		};
 };
 
