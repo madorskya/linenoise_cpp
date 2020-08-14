@@ -12,6 +12,9 @@
  *
  * Copyright (c) 2010-2016, Salvatore Sanfilippo <antirez at gmail dot com>
  * Copyright (c) 2010-2013, Pieter Noordhuis <pcnoordhuis at gmail dot com>
+ * Reworked by Alex Madorsky
+ *  - converted into C++ class
+ *  - added menu structure decoder
  *
  * All rights reserved.
  *
@@ -164,6 +167,33 @@ void completion_wrapper (void* ln, const char* a, linenoiseCompletions* b)
 char* hints_wrapper (void* ln, const char* a, int* b, int* c)
 {
 	return ((linenoise*)ln)->hints(a,b,c);
+}
+
+linenoise::linenoise (node_record* inr, string hist_fn)
+{
+	unsupported_term[0] = (char*) "dumb";
+	unsupported_term[1] = (char*) "cons25";
+	unsupported_term[2] = (char*) "emacs";
+	unsupported_term[3] = (char*) NULL;
+	completionCallback = completion_wrapper;
+	hintsCallback      = hints_wrapper;
+	freeHintsCallback = NULL;
+
+	maskmode = 0; /* Show "***" instead of input. For passwords. */
+	rawmode = 0; /* For atexit() function to check if restore is needed*/
+	mlmode = 0;  /* Multi line mode. Default is single line. */
+	atexit_registered = 0; /* Register atexit just 1 time. */
+	history_max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
+	history_len = 0;
+	history = (char**) NULL;
+	hist_filen = hist_fn;
+	// construct menu tree
+	menu_tree.import_node_record (inr);
+	/* Load history from file. The history file is just a plain text file
+	 * where entries are separated by newlines. */
+	if (hist_fn.size() > 0)
+		linenoiseHistoryLoad(hist_fn.c_str()); /* Load the history at startup */
+
 }
 
 /* Raw mode: 1960 magic shit. */
@@ -996,25 +1026,43 @@ char *linenoise::prompt(const char *prompt) {
     char buf[LINENOISE_MAX_LINE];
     int count;
 
-    if (!isatty(STDIN_FILENO)) {
+    if (!isatty(STDIN_FILENO)) 
+	{
         /* Not a tty: read from file / pipe. In this mode we don't want any
          * limit to the line size, so we call a function to handle that. */
         return linenoiseNoTTY();
-    } else if (isUnsupportedTerm()) {
+    } 
+	else if (isUnsupportedTerm()) 
+	{
         size_t len;
 
         printf("%s",prompt);
         fflush(stdout);
         if (fgets(buf,LINENOISE_MAX_LINE,stdin) == NULL) return NULL;
         len = strlen(buf);
-        while(len && (buf[len-1] == '\n' || buf[len-1] == '\r')) {
+        while(len && (buf[len-1] == '\n' || buf[len-1] == '\r')) 
+		{
             len--;
             buf[len] = '\0';
         }
+		if (strlen (buf) > 0) // if not empty
+		{
+			linenoiseHistoryAdd(buf); /* Add to the history. */
+			if (hist_filen.size() > 0) 
+				linenoiseHistorySave(hist_filen.c_str()); /* Save the history on disk. */
+		}
         return strdup(buf);
-    } else {
+    } 
+	else 
+	{
         count = linenoiseRaw(buf,LINENOISE_MAX_LINE,prompt);
         if (count == -1) return NULL;
+		if (strlen (buf) > 0) // if not empty
+		{
+			linenoiseHistoryAdd(buf); /* Add to the history. */
+			if (hist_filen.size() > 0) 
+				linenoiseHistorySave(hist_filen.c_str()); /* Save the history on disk. */
+		}
         return strdup(buf);
     }
 }
@@ -1313,6 +1361,8 @@ string menu_tree_t::find_hints (string pat)
 					{
 						// construct hint
 						hints = nr[j].hint;
+						// remember which record generated the hint
+						enter_index = j;
 						return hints; // can get out immediately
 					}
 				}

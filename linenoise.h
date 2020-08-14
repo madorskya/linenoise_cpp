@@ -9,6 +9,10 @@
  *
  * Copyright (c) 2010-2014, Salvatore Sanfilippo <antirez at gmail dot com>
  * Copyright (c) 2010-2013, Pieter Noordhuis <pcnoordhuis at gmail dot com>
+ * Reworked by Alex Madorsky
+ *  - converted into C++ class
+ *  - added menu structure decoder
+ *  
  *
  * All rights reserved.
  *
@@ -49,6 +53,8 @@ using namespace std;
 #define MAX_CMD_LENGTH 10000
 //extern FILE* log_file;
 
+// callback for node record
+typedef void(linenoise_enter_callback)(string cmd_line);
 
 // menu tree node class
 
@@ -57,6 +63,7 @@ typedef struct
 	int level; // node level. 0 = top node
 	string data; // menu item name
 	string hint; // hint for next field. Leave empty for automatic hint
+	linenoise_enter_callback *cb; // this gets called when user presses Enter
 } node_record;
 
 // menu tree class
@@ -70,8 +77,9 @@ class menu_tree_t
 		vector <string> v;
 		string matching_records; // list of matching fields
 		string hints; // returned hints
+		int enter_index;
 
-		menu_tree_t (){	};
+		menu_tree_t (){enter_index = -1;};
 
 		void import_node_record (node_record* inr){	nr = inr; };
 		int exact_match_regex(string line, string ex);
@@ -115,30 +123,11 @@ public:
 	int history_len;
 	char **history;
 	char res[MAX_CMD_LENGTH];
+	string hist_filen;
 
 	menu_tree_t menu_tree;
 
-	linenoise (node_record* inr)
-	{
-		unsupported_term[0] = (char*) "dumb";
-		unsupported_term[1] = (char*) "cons25";
-		unsupported_term[2] = (char*) "emacs";
-		unsupported_term[3] = (char*) NULL;
-		completionCallback = completion_wrapper;
-		hintsCallback      = hints_wrapper;
-		freeHintsCallback = NULL;
-
-		maskmode = 0; /* Show "***" instead of input. For passwords. */
-		rawmode = 0; /* For atexit() function to check if restore is needed*/
-		mlmode = 0;  /* Multi line mode. Default is single line. */
-		atexit_registered = 0; /* Register atexit just 1 time. */
-		history_max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
-		history_len = 0;
-		history = (char**) NULL;
-		// construct menu tree
-		menu_tree.import_node_record (inr);
-	};
-
+	linenoise (node_record* inr, string hist_fn);
 
 	/* The linenoiseState structure represents the state during line editing.
 	 *  * We pass this state to functions implementing specific editing
@@ -199,30 +188,30 @@ public:
 
 	char *prompt(const char *prompt);
 	void linenoiseFree(void *ptr);
-	int linenoiseHistoryAdd(const char *line);
-	int linenoiseHistorySetMaxLen(int len);
-	int linenoiseHistorySave(const char *filename);
-	int linenoiseHistoryLoad(const char *filename);
+	int  linenoiseHistoryAdd(const char *line);
+	int  linenoiseHistorySetMaxLen(int len);
+	int  linenoiseHistorySave(const char *filename);
+	int  linenoiseHistoryLoad(const char *filename);
 	void linenoiseClearScreen(void);
 	void linenoiseSetMultiLine(int ml);
 	void linenoisePrintKeyCodes(void);
 	void linenoiseMaskModeEnable(void);
 	void linenoiseMaskModeDisable(void);
-	int isUnsupportedTerm();
-	int enableRawMode(int);
+	int  isUnsupportedTerm();
+	int  enableRawMode(int);
 	void disableRawMode(int);
-	int getCursorPosition(int, int);
-	int getColumns(int, int);
+	int  getCursorPosition(int, int);
+	int  getColumns(int, int);
 	void linenoiseBeep();
 	void freeCompletions(linenoiseCompletions*);
-	int completeLine(linenoiseState*);
+	int  completeLine(linenoiseState*);
 	void abInit(abuf*);
 	void abAppend(abuf*, const char*, int);
 	void abFree(abuf*);
 	void refreshShowHints(abuf*, linenoiseState*, int);
 	void refreshSingleLine(linenoiseState*);
 	void refreshMultiLine(linenoiseState*);
-	int linenoiseEditInsert(linenoiseState*, char);
+	int  linenoiseEditInsert(linenoiseState*, char);
 	void linenoiseEditMoveLeft(linenoiseState*);
 	void linenoiseEditMoveRight(linenoiseState*);
 	void linenoiseEditMoveHome(linenoiseState*);
@@ -231,14 +220,13 @@ public:
 	void linenoiseEditDelete(linenoiseState*);
 	void linenoiseEditBackspace(linenoiseState*);
 	void linenoiseEditDeletePrevWord(linenoiseState*);
-	int linenoiseEdit(int, int, char*, size_t, const char*);
-	int linenoiseRaw(char*, size_t, const char*);
-	char* linenoiseNoTTY();
+	int  linenoiseEdit(int, int, char*, size_t, const char*);
+	int  linenoiseRaw(char*, size_t, const char*);
+	char *linenoiseNoTTY();
 	void freeHistory();
 	void completion(const char*, linenoiseCompletions*);
-	char* hints(const char*, int*, int*);
-
-
+	char *hints(const char*, int*, int*);
+	int  get_enter_index (){ return menu_tree.enter_index;};
 };
 
 
