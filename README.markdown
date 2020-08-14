@@ -4,7 +4,7 @@ The popular Linenoise library reworked for C++. The following additions and chan
 * Support for complete command line menu configuration via a command tree consisting of multiple records (`node_record` structure)
 * Callback and hint functionality is hidden inside the class
 * History handling is also hidden, and always enabled. To disable saving history, pass empty file name ("") to linenoise constructor.
-* Each command branch can be configured with its own callback function. When the user finishes typing a command and presses Enter, your program receives the pointer to the callback function corresponding to that command.
+* Each command branch can be configured with its own callback function. When the user finishes typing a command and hits Enter, your program receives the pointer to the callback function corresponding to that command.
 * `node_record` structure has the following format:
   * field 1: number of this argument in the command line that the user is typing
   * field 2: string used for matching to user-typed input. Supports Regex
