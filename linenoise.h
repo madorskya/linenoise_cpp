@@ -39,6 +39,7 @@
 #ifndef __LINENOISE_H
 #define __LINENOISE_H
 
+#include <termios.h>
 #include <string>
 #include <vector>
 #include <boost/regex.hpp>
@@ -46,7 +47,7 @@
 
 using namespace std;
 #define MAX_CMD_LENGTH 10000
-extern FILE* log_file;
+//extern FILE* log_file;
 
 
 // menu tree node class
@@ -65,200 +66,201 @@ class menu_tree_t
 	public:
 
 		node_record* nr; // user's node record
-
-		// menu tree constructor
-		// uses node_record structure array as input
-		menu_tree_t (node_record* inr)
-		{
-			nr = inr;
-		};
-
-		void print ()
-		{
-		};
-
-		int exact_match_regex(string line, string ex)
-		{
-			boost::regex re (ex);
-			boost::smatch m;
-			int res = 0;
-			if (boost::regex_search(line, m, re)) res = 1;
-			if (line.compare(ex) == 0) res |= 2;
-			return res;
-		};
-
-		int partial_match_regex(string line, string ex)
-		{
-			boost::regex re (ex);
-			boost::smatch m;
-			int res = 0;
-			if (boost::regex_search(line, m, re)) res = 1;
-			if (ex.find(line) != string::npos) res |= 2;
-			return res;
-		};
-
 		vector <string> fld;
 		vector <string> v;
 		string matching_records; // list of matching fields
 		string hints; // returned hints
 
-		vector <string> find_matches (string pat)
-		{
-			boost::trim (pat);
-			fld.clear();
-			v.clear();
-			matching_records.clear();
-			int last_top_level = 0;
-			int res;
+		menu_tree_t (){	};
 
-			boost::split(fld, pat, boost::is_any_of(" ")); // split into fields
-			size_t fld_size = fld.size();
-
-			for (size_t i = 0; i < fld.size(); i++) // i = field in pat, aka menu level
-			{
-				// i is also tree branch level
-				bool inside_branch = false;
-				// scan all records at level i
-				for (int j = last_top_level; ; j++) // j = nr record number
-				{
-					if (nr[j].level == -1) // last record, stop
-						break;
-
-					if (nr[j].level == (int)i) // correct level
-					{
-						inside_branch = true; // remember that we're inside correct branch
-						// try matching user's input
-						// if the number of fields is more than this level, require exact match
-						if (fld_size-1 > i)
-						{
-							if ((res = exact_match_regex (fld[i], nr[j].data))) // pat field matches record
-							{
-								// found exact match in non-last field, more fields to process
-								// if regex match, then add field itself as completion
-								if (res & 1) matching_records += fld[i] + " ";
-								else         matching_records += nr[j].data + " ";
-								// remember number
-								last_top_level = j;
-								// can quit loop now
-								break;
-							}
-						}
-						else
-						{
-							// last level to analyze
-							// fld[i] may contain partial match
-							if ((res = partial_match_regex (fld[i], nr[j].data)))
-							{
-								// construct completion line
-								string cl = matching_records;
-								// if regex match, then add field itself as completion
-								if (res & 1) cl += fld[i] + " ";
-								else         cl += nr[j].data + " ";
-								v.push_back (cl);
-							}
-						}
-					}
-					else
-					{
-						// stop if getting out of branch to lower level
-						if ((nr[j].level < (int)i) && inside_branch) break;
-					}
-				}
-			}
-			return v;
-		};
-
-		string find_hints (string pat)
-		{
-			boost::trim (pat);
-			fld.clear();
-			hints.clear();
-			int last_top_level = 0;
-			int res;
-
-			boost::split(fld, pat, boost::is_any_of(" ")); // split into fields
-			size_t fld_size = fld.size();
-
-			for (size_t i = 0; i < fld.size(); i++) // i = field in pat, aka menu level
-			{
-				// i is also tree branch level
-				bool inside_branch = false;
-				// scan all records at level i
-				for (int j = last_top_level; ; j++) // j = nr record number
-				{
-					if (nr[j].level == -1) // last record, stop
-						break;
-
-					if (nr[j].level == (int)i) // correct level
-					{
-						inside_branch = true; // remember that we're inside correct branch
-						// try matching user's input
-						// if the number of fields is more than this level, require exact match
-						if (fld_size-1 > i)
-						{
-							if ((res = exact_match_regex (fld[i], nr[j].data))) // pat field matches record
-							{
-								// found exact match in non-last field, more fields to process
-								// remember number
-								last_top_level = j;
-								// can quit loop now
-								break;
-							}
-						}
-						else
-						{
-							// last level to analyze
-							// fld[i] may contain partial match
-							if ((res = exact_match_regex (fld[i], nr[j].data)))
-							{
-								// construct hint
-								hints = nr[j].hint;
-								return hints; // can get out immediately
-							}
-						}
-					}
-					else
-					{
-						// stop if getting out of branch to lower level
-						if ((nr[j].level < (int)i) && inside_branch) break;
-					}
-				}
-			}
-			return hints;
-		};
+		void import_node_record (node_record* inr){	nr = inr; };
+		int exact_match_regex(string line, string ex);
+		int partial_match_regex(string line, string ex);
+		vector <string> find_matches (string pat);
+		string find_hints (string pat);
 };
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
-typedef struct linenoiseCompletions {
+typedef struct linenoiseCompletions 
+{
   size_t len;
   char **cvec;
 } linenoiseCompletions;
 
-typedef void(linenoiseCompletionCallback)(const char *, linenoiseCompletions *);
-typedef char*(linenoiseHintsCallback)(const char *, int *color, int *bold);
-typedef void(linenoiseFreeHintsCallback)(void *);
-void linenoiseSetCompletionCallback(linenoiseCompletionCallback *);
-void linenoiseSetHintsCallback(linenoiseHintsCallback *);
-void linenoiseSetFreeHintsCallback(linenoiseFreeHintsCallback *);
-void linenoiseAddCompletion(linenoiseCompletions *, const char *);
+#define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
+#define LINENOISE_MAX_LINE 4096
 
-char *linenoise(const char *prompt);
-void linenoiseFree(void *ptr);
-int linenoiseHistoryAdd(const char *line);
-int linenoiseHistorySetMaxLen(int len);
-int linenoiseHistorySave(const char *filename);
-int linenoiseHistoryLoad(const char *filename);
-void linenoiseClearScreen(void);
-void linenoiseSetMultiLine(int ml);
-void linenoisePrintKeyCodes(void);
-void linenoiseMaskModeEnable(void);
-void linenoiseMaskModeDisable(void);
+void at_exit_wrapper    (void* ln);
+void completion_wrapper (void* ln, const char* a, linenoiseCompletions* b);
+char* hints_wrapper     (void* ln, const char* a, int* b, int* c);
 
-#ifdef __cplusplus
-}
+class linenoise
+{
+public:
+	typedef void(linenoiseCompletionCallback)(void*, const char *, linenoiseCompletions *);
+	typedef char*(linenoiseHintsCallback)(void*, const char *, int *color, int *bold);
+	typedef void(linenoiseFreeHintsCallback)(void *);
+
+	char *unsupported_term[4];
+	linenoiseCompletionCallback *completionCallback;
+	linenoiseHintsCallback *hintsCallback;
+	linenoiseFreeHintsCallback *freeHintsCallback;
+
+	struct termios orig_termios; /* In order to restore at exit.*/
+	int maskmode; /* Show "***" instead of input. For passwords. */
+	int rawmode; /* For atexit() function to check if restore is needed*/
+	int mlmode;  /* Multi line mode. Default is single line. */
+	int atexit_registered; /* Register atexit just 1 time. */
+	int history_max_len;
+	int history_len;
+	char **history;
+	char res[MAX_CMD_LENGTH];
+
+	menu_tree_t menu_tree;
+
+	linenoise (node_record* inr)
+	{
+		unsupported_term[0] = (char*) "dumb";
+		unsupported_term[1] = (char*) "cons25";
+		unsupported_term[2] = (char*) "emacs";
+		unsupported_term[3] = (char*) NULL;
+		completionCallback = completion_wrapper;
+		hintsCallback      = hints_wrapper;
+		freeHintsCallback = NULL;
+
+		maskmode = 0; /* Show "***" instead of input. For passwords. */
+		rawmode = 0; /* For atexit() function to check if restore is needed*/
+		mlmode = 0;  /* Multi line mode. Default is single line. */
+		atexit_registered = 0; /* Register atexit just 1 time. */
+		history_max_len = LINENOISE_DEFAULT_HISTORY_MAX_LEN;
+		history_len = 0;
+		history = (char**) NULL;
+		// construct menu tree
+		menu_tree.import_node_record (inr);
+	};
+
+
+	/* The linenoiseState structure represents the state during line editing.
+	 *  * We pass this state to functions implementing specific editing
+	 *   * functionalities. */
+	struct linenoiseState {
+		int ifd;            /* Terminal stdin file descriptor. */
+		int ofd;            /* Terminal stdout file descriptor. */
+		char *buf;          /* Edited line buffer. */
+		size_t buflen;      /* Edited line buffer size. */
+		const char *prompt; /* Prompt to display. */
+		size_t plen;        /* Prompt length. */
+		size_t pos;         /* Current cursor position. */
+		size_t oldpos;      /* Previous refresh cursor position. */
+		size_t len;         /* Current edited line length. */
+		size_t cols;        /* Number of columns in terminal. */
+		size_t maxrows;     /* Maximum num of rows used so far (multiline mode) */
+		int history_index;  /* The history index we are currently editing. */
+	};
+
+	enum KEY_ACTION{
+		KEY_NULL = 0,       /* NULL */
+		CTRL_A = 1,         /* Ctrl+a */
+		CTRL_B = 2,         /* Ctrl-b */
+		CTRL_C = 3,         /* Ctrl-c */
+		CTRL_D = 4,         /* Ctrl-d */
+		CTRL_E = 5,         /* Ctrl-e */
+		CTRL_F = 6,         /* Ctrl-f */
+		CTRL_H = 8,         /* Ctrl-h */
+		TAB = 9,            /* Tab */
+		CTRL_K = 11,        /* Ctrl+k */
+		CTRL_L = 12,        /* Ctrl+l */
+		ENTER = 13,         /* Enter */
+		CTRL_N = 14,        /* Ctrl-n */
+		CTRL_P = 16,        /* Ctrl-p */
+		CTRL_T = 20,        /* Ctrl-t */
+		CTRL_U = 21,        /* Ctrl+u */
+		CTRL_W = 23,        /* Ctrl+w */
+		ESC = 27,           /* Escape */
+		BACKSPACE =  127    /* Backspace */
+	};
+
+	/* We define a very simple "append buffer" structure, that is an heap
+	 * allocated string where we can append to. This is useful in order to
+	 * write all the escape sequences in a buffer and flush them to the standard
+	 * output in a single call, to avoid flickering effects. */
+	struct abuf {
+		char *b;
+		int len;
+	};
+
+	void linenoiseAtExit(void);
+	void refreshLine(struct linenoiseState *l);
+
+	void linenoiseSetCompletionCallback(linenoiseCompletionCallback *);
+	void linenoiseSetHintsCallback(linenoiseHintsCallback *);
+	void linenoiseSetFreeHintsCallback(linenoiseFreeHintsCallback *);
+	void linenoiseAddCompletion(linenoiseCompletions *, const char *);
+
+	char *prompt(const char *prompt);
+	void linenoiseFree(void *ptr);
+	int linenoiseHistoryAdd(const char *line);
+	int linenoiseHistorySetMaxLen(int len);
+	int linenoiseHistorySave(const char *filename);
+	int linenoiseHistoryLoad(const char *filename);
+	void linenoiseClearScreen(void);
+	void linenoiseSetMultiLine(int ml);
+	void linenoisePrintKeyCodes(void);
+	void linenoiseMaskModeEnable(void);
+	void linenoiseMaskModeDisable(void);
+	int isUnsupportedTerm();
+	int enableRawMode(int);
+	void disableRawMode(int);
+	int getCursorPosition(int, int);
+	int getColumns(int, int);
+	void linenoiseBeep();
+	void freeCompletions(linenoiseCompletions*);
+	int completeLine(linenoiseState*);
+	void abInit(abuf*);
+	void abAppend(abuf*, const char*, int);
+	void abFree(abuf*);
+	void refreshShowHints(abuf*, linenoiseState*, int);
+	void refreshSingleLine(linenoiseState*);
+	void refreshMultiLine(linenoiseState*);
+	int linenoiseEditInsert(linenoiseState*, char);
+	void linenoiseEditMoveLeft(linenoiseState*);
+	void linenoiseEditMoveRight(linenoiseState*);
+	void linenoiseEditMoveHome(linenoiseState*);
+	void linenoiseEditMoveEnd(linenoiseState*);
+	void linenoiseEditHistoryNext(linenoiseState*, int);
+	void linenoiseEditDelete(linenoiseState*);
+	void linenoiseEditBackspace(linenoiseState*);
+	void linenoiseEditDeletePrevWord(linenoiseState*);
+	int linenoiseEdit(int, int, char*, size_t, const char*);
+	int linenoiseRaw(char*, size_t, const char*);
+	char* linenoiseNoTTY();
+	void freeHistory();
+	void completion(const char*, linenoiseCompletions*);
+	char* hints(const char*, int*, int*);
+
+
+};
+
+
+/* Debugging macro. */
+#if 0
+FILE *lndebug_fp = NULL;
+#define lndebug(...) \
+	do { \
+		if (lndebug_fp == NULL) { \
+			lndebug_fp = fopen("/tmp/lndebug.txt","a"); \
+			fprintf(lndebug_fp, \
+					"[%d %d %d] p: %d, rows: %d, rpos: %d, max: %d, oldmax: %d\n", \
+					(int)l->len,(int)l->pos,(int)l->oldpos,plen,rows,rpos, \
+					(int)l->maxrows,old_rows); \
+		} \
+		fprintf(lndebug_fp, ", " __VA_ARGS__); \
+		fflush(lndebug_fp); \
+	} while (0)
+#else
+#define lndebug(fmt, ...)
 #endif
+
+
 
 #endif /* __LINENOISE_H */

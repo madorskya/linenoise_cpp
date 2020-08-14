@@ -23,54 +23,26 @@ node_record nr[] =
 };
 
 menu_tree_t * menu_tree; // make menu tree global for now
-char res[MAX_CMD_LENGTH];
 
-void completion(const char *buf, linenoiseCompletions *lc) 
+
+int main(int argc, char **argv) 
 {
-
-	// scan the tree, find matches
-	vector<string> matches = menu_tree->find_matches(string(buf));	
-
-	// add all matches as possible completions
-	for (std::vector<string>::iterator it = matches.begin() ; it != matches.end(); ++it)
-        linenoiseAddCompletion(lc, it->c_str());
-}
-
-char *hints(const char *buf, int *color, int *bold) 
-{
-	fprintf (log_file, "****************buf: %s\n", buf);
-	fflush  (log_file);
-
-	string mhint = menu_tree->find_hints (string(buf));
-    if (mhint.size() > 0) 
-	{
-        *color = 35;
-        *bold = 1;
-        strcpy(res, mhint.c_str());
-		return res;
-    }
-    return NULL;
-}
-
-int main(int argc, char **argv) {
     char *line;
     char *prgname = argv[0];
 
-	log_file = fopen ("log.txt", "w");
+	// construct linenoise
+	linenoise ln(nr);
 
-	// construct menu tree
-	menu_tree = new menu_tree_t(nr);
-	menu_tree->print();
 
     /* Parse options, with --multiline we enable multi line editing. */
     while(argc > 1) {
         argc--;
         argv++;
         if (!strcmp(*argv,"--multiline")) {
-            linenoiseSetMultiLine(1);
+            ln.linenoiseSetMultiLine(1);
             printf("Multi-line mode enabled.\n");
         } else if (!strcmp(*argv,"--keycodes")) {
-            linenoisePrintKeyCodes();
+            ln.linenoisePrintKeyCodes();
             exit(0);
         } else {
             fprintf(stderr, "Usage: %s [--multiline] [--keycodes]\n", prgname);
@@ -78,14 +50,9 @@ int main(int argc, char **argv) {
         }
     }
 
-    /* Set the completion callback. This will be called every time the
-     * user uses the <tab> key. */
-    linenoiseSetCompletionCallback(completion);
-    linenoiseSetHintsCallback(hints);
-
     /* Load history from file. The history file is just a plain text file
      * where entries are separated by newlines. */
-    linenoiseHistoryLoad("history.txt"); /* Load the history at startup */
+    ln.linenoiseHistoryLoad("history.txt"); /* Load the history at startup */
 
     /* Now this is the main loop of the typical linenoise-based application.
      * The call to linenoise() will block as long as the user types something
@@ -94,20 +61,21 @@ int main(int argc, char **argv) {
      * The typed string is returned as a malloc() allocated string by
      * linenoise, so the user needs to free() it. */
     
-    while((line = linenoise("hello> ")) != NULL) {
+    while((line = ln.prompt("first> ")) != NULL) 
+	{
         /* Do something with the string. */
         if (line[0] != '\0' && line[0] != '/') {
             printf("echo: '%s'\n", line);
-            linenoiseHistoryAdd(line); /* Add to the history. */
-            linenoiseHistorySave("history.txt"); /* Save the history on disk. */
+            ln.linenoiseHistoryAdd(line); /* Add to the history. */
+            ln.linenoiseHistorySave("history.txt"); /* Save the history on disk. */
         } else if (!strncmp(line,"/historylen",11)) {
             /* The "/historylen" command will change the history len. */
             int len = atoi(line+11);
-            linenoiseHistorySetMaxLen(len);
+            ln.linenoiseHistorySetMaxLen(len);
         } else if (!strncmp(line, "/mask", 5)) {
-            linenoiseMaskModeEnable();
+            ln.linenoiseMaskModeEnable();
         } else if (!strncmp(line, "/unmask", 7)) {
-            linenoiseMaskModeDisable();
+            ln.linenoiseMaskModeDisable();
         } else if (line[0] == '/') {
             printf("Unreconized command: %s\n", line);
         }
