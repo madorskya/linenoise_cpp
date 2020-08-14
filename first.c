@@ -8,18 +8,17 @@ FILE* log_file;
 // menu structure record
 node_record nr[] = 
 {
-	{0, "", ""}, 
-		{1, "settings", "operation"},
-			{2, "write", "what"},
-				{3, "([0-9]+)", "address"},
-					{4, "([0-9]+)", "data"},
-			{2, "wrong", ""},
-				{3, "stuff", ""},
-		{1, "reset", ""},
-		{1, "prbs", "pattern"},
-			{2, "7", ""},
-			{2, "15", ""},
-			{2, "31", ""},
+	{0, "settings", "operation"},
+	{1, 	"write", "address"},
+	{2, 		"([0-9a-fx]+)", "data"},
+	{3, 			"([0-9a-fx]+)", "<Enter>"},
+	{1, 	"wrong", ""},
+	{2, 		"stuff", ""},
+	{0, "reset", ""},
+	{0, "prbs", "pattern"},
+	{1, 	"7", ""},
+	{1, 	"15", ""},
+	{1, 	"31", ""},
 	{-1, "", ""} // end marker
 };
 
@@ -28,8 +27,6 @@ char res[MAX_CMD_LENGTH];
 
 void completion(const char *buf, linenoiseCompletions *lc) 
 {
-//	fprintf (log_file, "buf: %s\n", buf);
-//	fflush  (log_file);
 
 	// scan the tree, find matches
 	vector<string> matches = menu_tree->find_matches(string(buf));	
@@ -41,6 +38,9 @@ void completion(const char *buf, linenoiseCompletions *lc)
 
 char *hints(const char *buf, int *color, int *bold) 
 {
+	fprintf (log_file, "****************buf: %s\n", buf);
+	fflush  (log_file);
+
 	string mhint = menu_tree->find_hints (string(buf));
     if (mhint.size() > 0) 
 	{
@@ -56,7 +56,7 @@ int main(int argc, char **argv) {
     char *line;
     char *prgname = argv[0];
 
-//	log_file = fopen ("log.txt", "w");
+	log_file = fopen ("log.txt", "w");
 
 	// construct menu tree
 	menu_tree = new menu_tree_t(nr);

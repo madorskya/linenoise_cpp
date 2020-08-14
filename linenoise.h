@@ -41,132 +41,15 @@
 
 #include <string>
 #include <vector>
-#include <regex>
 #include <boost/regex.hpp>
 #include <boost/algorithm/string.hpp>
 
 using namespace std;
-#define MAX_LEVEL 100 // max number of levels in menu
-#define MAX_CMD_LENGTH 10000 // max length of one command
+#define MAX_CMD_LENGTH 10000
+extern FILE* log_file;
+
 
 // menu tree node class
-class node_t
-{
-	public:
-		string data; // menu item name 
-		string hint;
-		// pointers to next-level menu items
-		// if the vector is empty, this is a leaf
-		vector <struct node_t *> items;
-
-		//allocate new node 
-		node_t (string idata, string ihint) 
-		{ 
-			data = idata;
-			hint = ihint;
-			items.clear();
-		};
-
-		// adding new item to list of items
-		void add_item (node_t *nitem)
-		{
-			items.push_back (nitem);
-		};
-
-		void print(string indent)
-		{
-			printf ("%sname: %s nodes: %ld\n", indent.c_str(), data.c_str(), items.size());
-			for (vector<node_t *>::iterator it = items.begin() ; it != items.end(); ++it)
-				    (*it)->print(indent + " ");
-		};
-
-		vector<string> find_matches (string pat)
-		{
-			boost::trim (pat);
-			vector<string> v;
-			v.clear();
-			for (vector<node_t *>::iterator it = items.begin() ; it != items.end(); ++it)
-			{
-				// check if each branch matches the pattern
-				// if it does, ask it to scan itself
-				string br_name = (*it)->data; // this is branch name
-
-				// branch name is longer than pattern
-				if (br_name.size() >= pat.size())
-				{
-//					if (br_name.find(pat) != string::npos)
-					regex re (br_name);
-					smatch m;
-					if (regex_search(pat, m, re) || br_name.find(pat) != string::npos)
-					{
-						// this branch name is longer than pattern already, 
-						// just return it as completion
-						v.push_back(br_name);
-					}
-				}
-				else // pattern is longer
-				{
-					if (pat.find(br_name) != string::npos)
-					{
-						// this branch matches, but pattern is longer
-						// assume that it begins with complete branch name
-						// and remove it from pattern
-						string red_pat = pat.substr(br_name.size());
-						vector<string> cv = (*it)->find_matches (red_pat); // scan the branch
-						// add matches to return vector
-						for (vector<string>::iterator cvit = cv.begin() ; cvit != cv.end(); ++cvit)
-						{
-							// attach branch name in front of each completion
-							(*cvit) = br_name + " " + (*cvit); 
-						}
-						v.insert (v.end(), cv.begin(), cv.end());
-					}
-				}
-			}
-			return v;
-		};
-
-		string find_hints (string pat)
-		{
-			boost::trim (pat);
-			string s = "";
-
-			if (pat.compare(data) == 0) // pattern matches the name of this node
-			{
-				if (hint.size() > 0) // this node has its own hint
-				{
-					s = " " + hint;
-				}
-				else
-				{
-					// scan all children
-					for (vector<node_t *>::iterator it = items.begin() ; it != items.end(); ++it)
-					{
-						string br_name = (*it)->data; // this is branch name
-						s += br_name + "|"; // just add child's name to hint
-					}
-					s = " " + s; // need space in front
-					s = s.substr(0, s.size() - 1); // remove last |
-				}
-			}
-			else
-			{
-				if (pat.size() > data.size())
-				{
-					// pattern longer than name of this item
-					// remove name of this item from pattern
-					string red_pat = pat.substr(data.size());
-					// scan children
-					for (vector<node_t *>::iterator it = items.begin() ; it != items.end(); ++it)
-					{
-						s = (*it)->find_hints (red_pat); // scan the branch
-						if (s.size() > 0) break;
-					}
-				}
-			}
-			return s;
-		};
-};
 
 typedef struct 
 {
@@ -180,56 +63,113 @@ typedef struct
 class menu_tree_t
 {
 	public:
-		// this array is used to remember current record # for each level 
-		// during construction
-		int      cur_rec[MAX_LEVEL];
-		// this array remembers last node for each level
-		node_t * cur_node[MAX_LEVEL];
+
+		node_record* nr; // user's node record
 
 		// menu tree constructor
 		// uses node_record structure array as input
-		menu_tree_t (node_record* nr)
+		menu_tree_t (node_record* inr)
 		{
-			// reset all current levels
-			for (int i = 0; i < MAX_LEVEL; i++) cur_rec[i] = -1;
-
-			// scan input structure
-			for (int i = 0; ; i++)
-			{
-				int cur_level = nr[i].level;
-				string cur_data = nr[i].data;
-				string cur_hint = nr[i].hint;
-				if (cur_level == -1) break; // end of record
-
-				// create new node, store in cur_node
-				cur_node[cur_level] = new node_t (cur_data, cur_hint);
-				// also store number of record
-				cur_rec[cur_level] = i; 
-				// find node with higher level
-				if (cur_level > 0)
-				{
-					cur_node[cur_level - 1]->add_item (cur_node[cur_level]);
-				}
-				// if cur_level == 0 that's top node, nothing to add it to 
-
-				cur_rec[nr[i].level] = i; // remember last record number for each level
-			}
+			nr = inr;
 		};
 
 		void print ()
 		{
-			// just tell the top node to print itself
-			cur_node[0]->print("");
 		};
+
+		int exact_match_regex(string line, string ex)
+		{
+			boost::regex re (ex);
+			boost::smatch m;
+			int res = 0;
+			if (boost::regex_search(line, m, re)) res = 1;
+			if (line.compare(ex) == 0) res |= 2;
+			return res;
+		};
+
+		int partial_match_regex(string line, string ex)
+		{
+			boost::regex re (ex);
+			boost::smatch m;
+			int res = 0;
+			if (boost::regex_search(line, m, re)) res = 1;
+			if (ex.find(line) != string::npos) res |= 2;
+			return res;
+		};
+
+		vector <string> fld;
+		vector <string> v;
+		string matching_records; // list of matching fields
 
 		vector <string> find_matches (string pat)
 		{
-			return cur_node[0]->find_matches (pat);
+			boost::trim (pat);
+			fld.clear();
+			v.clear();
+			matching_records.clear();
+			int last_top_level = 0;
+			int res;
+
+			boost::split(fld, pat, boost::is_any_of(" ")); // split into fields
+			size_t fld_size = fld.size();
+
+			for (size_t i = 0; i < fld.size(); i++) // i = field in pat, aka menu level
+			{
+				// i is also tree branch level
+				bool inside_branch = false;
+				// scan all records at level i
+				for (int j = last_top_level; ; j++) // j = nr record number
+				{
+					if (nr[j].level == -1) // last record, stop
+						break;
+
+					if (nr[j].level == (int)i) // correct level
+					{
+						inside_branch = true; // remember that we're inside correct branch
+						// try matching user's input
+						// if the number of fields is more than this level, require exact match
+						if (fld_size-1 > i)
+						{
+							if ((res = exact_match_regex (fld[i], nr[j].data))) // pat field matches record
+							{
+								// found exact match in non-last field, more fields to process
+								// if regex match, then add field itself as completion
+								if (res & 1) matching_records += fld[i] + " ";
+								else         matching_records += nr[j].data + " ";
+								// remember number
+								last_top_level = j;
+								// can quit loop now
+								break;
+							}
+						}
+						else
+						{
+							// last level to analyze
+							// fld[i] may contain partial match
+							if ((res = partial_match_regex (fld[i], nr[j].data)))
+							{
+								// construct completion line
+								string cl = matching_records;
+								// if regex match, then add field itself as completion
+								if (res & 1) cl += fld[i] + " ";
+								else         cl += nr[j].data + " ";
+								v.push_back (cl);
+							}
+						}
+					}
+					else
+					{
+						// stop if getting out of branch to lower level
+						if ((nr[j].level < (int)i) && inside_branch) break;
+					}
+				}
+			}
+			return v;
 		};
 
 		string find_hints (string pat)
 		{
-			return cur_node[0]->find_hints (pat);
+			return pat;
 		};
 };
 
