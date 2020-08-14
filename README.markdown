@@ -1,6 +1,6 @@
 # Linenoise CPP
 
-The popular Linenoise library reworked for C++. The followind additions and changes were made:
+The popular Linenoise library reworked for C++. The following additions and changes were made:
 * Support for complete command line menu configuration via a command tree consisting of multiple records (`node_record` structure)
 * Callback and hint functionality is hidden inside the class
 * History handling is also hidden, and always enabled. To disable saving history, pass empty file name ("") to linenoise constructor.
