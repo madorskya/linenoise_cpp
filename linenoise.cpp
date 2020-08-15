@@ -258,7 +258,7 @@ int linenoise::getCursorPosition(int ifd, int ofd) {
     buf[i] = '\0';
 
     /* Parse it. */
-    if (buf[0] != ESC || buf[1] != '[') return -1;
+    if (buf[0] != KEY_ESC || buf[1] != '[') return -1;
     if (sscanf(buf+2,"%d;%d",&rows,&cols) != 2) return -1;
     return cols;
 }
@@ -850,7 +850,7 @@ int linenoise::linenoiseEdit(int stdin_fd, int stdout_fd, char *buf, size_t bufl
         case CTRL_N:    /* ctrl-n */
             linenoiseEditHistoryNext(&l, LINENOISE_HISTORY_NEXT);
             break;
-        case ESC:    /* escape sequence */
+        case KEY_ESC:    /* escape sequence */
             /* Read the next two bytes representing the escape sequence.
              * Use two calls to handle slow terminals returning the two
              * chars at different times. */

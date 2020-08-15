@@ -156,7 +156,7 @@ public:
 		CTRL_E = 5,         /* Ctrl-e */
 		CTRL_F = 6,         /* Ctrl-f */
 		CTRL_H = 8,         /* Ctrl-h */
-		TAB = 9,            /* Tab */
+		KEY_TAB = 9,        /* Tab - renamed due to name conflict */
 		CTRL_K = 11,        /* Ctrl+k */
 		CTRL_L = 12,        /* Ctrl+l */
 		ENTER = 13,         /* Enter */
@@ -165,7 +165,7 @@ public:
 		CTRL_T = 20,        /* Ctrl-t */
 		CTRL_U = 21,        /* Ctrl+u */
 		CTRL_W = 23,        /* Ctrl+w */
-		ESC = 27,           /* Escape */
+		KEY_ESC = 27,       /* Escape - renamed due to name conflict*/
 		BACKSPACE =  127    /* Backspace */
 	};
 
