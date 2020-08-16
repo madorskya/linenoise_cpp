@@ -1256,65 +1256,62 @@ vector <string> menu_tree_t::find_matches (string pat)
 	fld.clear();
 	v.clear();
 	matching_records.clear();
-	int last_top_level = 0;
-	int res;
 
 	boost::split(fld, pat, boost::is_any_of(" ")); // split into fields
-	size_t fld_size = fld.size();
+	int typ_lev = fld.size() - 1; // menu level where the user is typing now
+	int cur_fld = 0; // pat field currently analyzed
+	int match_level = -1;
+	int res;
 
-	for (size_t i = 0; i < fld.size(); i++) // i = field in pat, aka menu level
+	// scan records top to bottom
+	for (int i = 0; ; i++) // record loop
 	{
-		// i is also tree branch level
-		bool inside_branch = false;
-		// scan all records at level i
-		for (int j = last_top_level; ; j++) // j = nr record number
-		{
-			if (nr[j].level == -1) // last record, stop
-				break;
+		if (nr[i].level == -1) // last record, stop
+			break;
+	
+		int cur_lev = nr[i].level; // current level
 
-			if (nr[j].level == (int)i) // correct level
+		// if match was already found, we're moving past the relevant branch, stop now
+		if (match_level >= cur_lev) break;
+
+		// only compare if the field is on the level of record
+		if (cur_fld == cur_lev)
+		{
+			// if we're not on the level where the user is typing, require exact match
+			if (cur_lev < typ_lev)
 			{
-				inside_branch = true; // remember that we're inside correct branch
-				// try matching user's input
-				// if the number of fields is more than this level, require exact match
-				if (fld_size-1 > i)
+
+				if ((res = exact_match_regex (fld[cur_fld], nr[i].data))) // pat field matches record
 				{
-					if ((res = exact_match_regex (fld[i], nr[j].data))) // pat field matches record
-					{
-						// found exact match in non-last field, more fields to process
-						// if regex match, then add field itself as completion
-						if (res & 1) matching_records += fld[i] + " ";
-						else         matching_records += nr[j].data + " ";
-						// remember number
-						last_top_level = j;
-						// can quit loop now
-						break;
-					}
-				}
-				else
-				{
-					// last level to analyze
-					// fld[i] may contain partial match
-					if ((res = partial_match_regex (fld[i], nr[j].data)))
-					{
-						// construct completion line
-						string cl = matching_records;
-						// if regex match, then add field itself as completion
-						if (res & 1) cl += fld[i] + " ";
-						else         cl += nr[j].data + " ";
-						v.push_back (cl);
-					}
+					// found exact match in non-last field, more fields to process
+					// if regex match, then add field itself as completion
+					if (res & 1) matching_records += fld[cur_fld] + " ";
+					else         matching_records += nr[i].data + " ";
+
+					match_level = cur_lev;
+
+					// move to next level
+					cur_fld++;
 				}
 			}
 			else
+			if (cur_lev == typ_lev)	
 			{
-				// stop if getting out of branch to lower level
-				if ((nr[j].level < (int)i) && inside_branch) break;
+				// this is the typing level, the match may be inexact
+				if ((res = partial_match_regex (fld[cur_fld], nr[i].data)))
+				{
+					// construct completion line
+					string cl = matching_records;
+					// if regex match, then add field itself as completion
+					if (res & 1) cl += fld[cur_fld] + " ";
+					else         cl += nr[i].data + " ";
+					v.push_back (cl);
+				}
 			}
 		}
 	}
 	return v;
-};
+}
 
 string menu_tree_t::find_hints (string pat)
 {

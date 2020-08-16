@@ -30,16 +30,15 @@ void cb3 (string cmd)
 node_record nr[] = 
 {
 	{0, "settings", "operation", NULL},
-	{1, 	"write", "address", NULL},
-	{2, 		"([0-9a-fx]+)", "data", NULL},
+	{1, 	"write", "address (dec or 0x)", NULL},
+	{2, 		"([0-9a-fx]+)", "data (dec or 0x)", NULL},
 	{3, 			"([0-9a-fx]+)", "<Enter>", cb1},
-	{1, 	"wrong", "<Enter>", NULL},
+	{1, 	"wrong", "stuff", NULL},
 	{2, 		"stuff", "<Enter>", NULL},
 	{0, "reset", "<Enter>", NULL},
 	{0, "prbs", "pattern", NULL},
-	{1, 	"7", "<Enter>", cb2},
-	{1, 	"15", "<Enter>", cb2},
-	{1, 	"31", "<Enter>", cb2},
+	{1, 	"(7|15|23|31)", "<Enter>", cb2},
+	{1, 	"read", "<Enter>", cb2},
 	{0,	"exit", "<Enter>", cb3},
 	{-1, "", "", NULL} // end marker
 };
