@@ -1,15 +1,27 @@
 # Linenoise CPP
 
-The popular Linenoise library reworked for C++. The following additions and changes were made:
+The popular Linenoise library reworked for C++, focused on **extreme ease of use**.
+The following additions and changes were made:
 * Support for complete command line menu configuration via a command tree consisting of multiple records (`node_record` structure)
 * Callback and hint functionality is hidden inside the class
 * History handling is also hidden, and always enabled. To disable saving history, pass empty file name ("") to linenoise constructor.
 * Each command branch can be configured with its own callback function. When the user finishes typing a command and hits Enter, your program receives the pointer to the callback function corresponding to that command.
-* `node_record` structure has the following format:
-  * field 1: number of this argument in the command line that the user is typing
-  * field 2: string used for matching to user-typed input. Supports Regex
-  * field 3: hint for the **NEXT** argument (not the one currently being typed). These hints are displayed while the user is typing
-  * field 4: pointer to callback function, or NULL if no callback
+* Help message display for each node record. 
+
+`node_record` structure has the following format:
+  * `level` : number of this argument in the command line that the user is typing, a.k.a. menu level
+  * `data`  : string used for matching to user-typed input. Supports regular expressions. See below for details.
+  * `hint`  : hint for the **NEXT** argument (not the one currently being typed). These hints are displayed while the user is typing
+  * `cb`    : pointer to callback function, or NULL if no callback
+  * `help`  : pointer to string containing help text for this node, or NULL if no help string
+
+`data` field supports regular expressions. If used, enclose regular expression into round brackets. Example: `([0-9]+)`
+See example `first.cpp` for more details.
+
+Last record in the command tree must have `level` field equal to `-1`. The `help` field in the last record, if `!= NULL`, should point to the help string for the top-level menu. It will be shown when the user types `help<Enter>`.
+
+Original Linenoise repository:
+https://github.com/antirez/linenoise
 
 Original README text from Linenoise project is below:
 # Linenoise
