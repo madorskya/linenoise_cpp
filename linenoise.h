@@ -56,7 +56,7 @@ using namespace std;
 // callback for node record
 typedef void(linenoise_enter_callback)(string cmd_line);
 
-// menu tree node class
+// menu tree node structure
 
 typedef struct 
 {
@@ -64,6 +64,7 @@ typedef struct
 	string data; // menu item name
 	string hint; // hint for next field. Leave empty for automatic hint
 	linenoise_enter_callback *cb; // this gets called when user presses Enter
+	string * help; // pointer to help string for this node
 } node_record;
 
 // menu tree class
@@ -78,10 +79,14 @@ class menu_tree_t
 		string matching_records; // list of matching fields
 		string hints; // returned hints
 		int enter_index;
+		string help_message;
+		string help_command;
+		string default_help_message;
+		string default_hint;
 
 		menu_tree_t (){enter_index = -1;};
 
-		void import_node_record (node_record* inr){	nr = inr; };
+		void import_node_record (node_record* inr);
 		int exact_match_regex(string line, string ex);
 		int partial_match_regex(string line, string ex);
 		vector <string> find_matches (string pat);
@@ -226,7 +231,8 @@ public:
 	void freeHistory();
 	void completion(const char*, linenoiseCompletions*);
 	char *hints(const char*, int*, int*);
-	int  get_enter_index (){ return menu_tree.enter_index;};
+	int  get_enter_index (){ int ind = menu_tree.enter_index; menu_tree.enter_index = -1; return ind;};
+	string get_help_message ();
 };
 
 

@@ -1232,21 +1232,40 @@ char *linenoise::hints(const char *buf, int *color, int *bold)
 
 int menu_tree_t::exact_match_regex(string line, string ex)
 {
-	boost::regex re (ex);
-	boost::smatch m;
+	char fchar = ex.c_str()[0];
+	char lchar = ex.c_str()[ex.size()-1];
 	int res = 0;
-	if (boost::regex_search(line, m, re)) res = 1;
-	if (line.compare(ex) == 0) res |= 2;
+	if (fchar == '(' && lchar == ')')
+	{
+		boost::regex re (ex);
+		boost::smatch m;
+		if (boost::regex_search(line, m, re)) res = 1;
+	}
+	else
+		if (line.compare(ex) == 0) res = 2;
 	return res;
 };
 
 int menu_tree_t::partial_match_regex(string line, string ex)
 {
-	boost::regex re (ex);
-	boost::smatch m;
+	char fchar = ex.c_str()[0];
+	char lchar = ex.c_str()[ex.size()-1];
 	int res = 0;
-	if (boost::regex_search(line, m, re)) res = 1;
-	if (ex.find(line) != string::npos) res |= 2;
+	if (fchar == '(' && lchar == ')')
+	{
+		boost::regex re (ex);
+		boost::smatch m;
+		if (boost::regex_search(line, m, re)) res = 1;
+	}
+	else
+	{
+		// make sure the typed line is compared with beginning of the ex
+		if (line.size() <= ex.size())
+		{
+			ex.resize(line.size()); // ex now contains beginning of ex matching line in length
+			if (ex.compare(line) == 0) res = 2;
+		}
+	}
 	return res;
 };
 
@@ -1258,7 +1277,20 @@ vector <string> menu_tree_t::find_matches (string pat)
 	matching_records.clear();
 
 	boost::split(fld, pat, boost::is_any_of(" ")); // split into fields
-	int typ_lev = fld.size() - 1; // menu level where the user is typing now
+	size_t fld_size = fld.size();
+
+	bool help_request = false;
+
+	if (fld[0].compare(help_command) == 0)
+	{
+		help_request = true; // ignore first field when scanning
+		fld_size--;
+		for (unsigned i = 0; i < fld_size; i++)
+			fld[i] = fld[i+1];
+		fld.resize(fld_size);
+	}
+
+	int typ_lev = fld_size - 1; // menu level where the user is typing now
 	int cur_fld = 0; // pat field currently analyzed
 	int match_level = -1;
 	int res;
@@ -1266,10 +1298,9 @@ vector <string> menu_tree_t::find_matches (string pat)
 	// scan records top to bottom
 	for (int i = 0; ; i++) // record loop
 	{
-		if (nr[i].level == -1) // last record, stop
-			break;
 	
 		int cur_lev = nr[i].level; // current level
+		if (cur_lev == -1) cur_lev = 0; // to process last record
 
 		// if match was already found, we're moving past the relevant branch, stop now
 		if (match_level >= cur_lev) break;
@@ -1305,10 +1336,15 @@ vector <string> menu_tree_t::find_matches (string pat)
 					// if regex match, then add field itself as completion
 					if (res & 1) cl += fld[cur_fld] + " ";
 					else         cl += nr[i].data + " ";
+
+					if (help_request) cl = help_command + " " + cl;
+
 					v.push_back (cl);
 				}
 			}
 		}
+		if (nr[i].level == -1) // last record, stop
+			break;
 	}
 	return v;
 }
@@ -1323,6 +1359,27 @@ string menu_tree_t::find_hints (string pat)
 
 	boost::split(fld, pat, boost::is_any_of(" ")); // split into fields
 	size_t fld_size = fld.size();
+
+	bool help_request = false;
+//	fprintf (log_file, "****************pat: %s, size: %ld\n", pat.c_str(), fld_size);
+//	fflush  (log_file);
+
+	if (fld[0].compare(help_command) == 0)
+	{
+		help_request = true; // ignore first field when scanning
+		fld_size--;
+		for (unsigned i = 0; i < fld_size; i++)
+			fld[i] = fld[i+1];
+		fld.resize(fld_size);
+
+		if (fld_size == 0) // just "help", return top-level help message and hint
+		{
+			help_message = default_help_message;
+			hints = default_hint;
+			enter_index = -1;
+			return hints;
+		}
+	}
 
 	for (size_t i = 0; i < fld.size(); i++) // i = field in pat, aka menu level
 	{
@@ -1360,6 +1417,22 @@ string menu_tree_t::find_hints (string pat)
 						hints = nr[j].hint;
 						// remember which record generated the hint
 						enter_index = j;
+
+						// if this was help request or 
+						// this record does not have callback
+						// then display help message if available
+						if (help_request || nr[j].cb == NULL) 
+						{
+							// print requested help string
+							if (nr[j].help != NULL)
+								help_message = (*nr[j].help) + "\n";
+							else
+								help_message = "\n";
+
+							// make enter_index invalid, so the callback is not called
+							enter_index = -enter_index - 1;
+						}
+
 						return hints; // can get out immediately
 					}
 				}
@@ -1373,3 +1446,25 @@ string menu_tree_t::find_hints (string pat)
 	}
 	return hints;
 };
+
+void menu_tree_t::import_node_record (node_record* inr)
+{
+	nr = inr;
+	// find last record
+	int lrn; // last record number
+	for (lrn = 0; ; lrn++) {if (nr[lrn].level == -1) break;}
+
+	// last record contains default help message, hint, and help command itself
+	help_command = nr[lrn].data;
+	default_help_message = (*nr[lrn].help) + "\n";
+	default_hint = nr[lrn].hint;
+
+}
+
+string linenoise::get_help_message ()
+{ 
+	string hm = menu_tree.help_message; 
+	menu_tree.help_message = ""; 
+	return hm;
+};
+
