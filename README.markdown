@@ -15,10 +15,14 @@ The following additions and changes were made:
   * `cb`    : pointer to callback function, or NULL if no callback
   * `help`  : pointer to string containing help text for this node, or NULL if no help string
 
-`data` field supports regular expressions. If used, enclose regular expression into round brackets. Example: `([0-9]+)`
+The `data` field supports regular expressions. If used, enclose regular expression into round brackets. Example: `([0-9]+)`
 See example `first.cpp` for more details.
 
-Last record in the command tree must have `level` field equal to `-1`. The `help` field in the last record, if `!= NULL`, should point to the help string for the top-level menu. It will be shown when the user types `help<Enter>`.
+The `help` field is used as follows: if the user types `help [command]<Enter>`, the string pointed to by this field is displayed. If the user types a command that does not have a callback, but does have a help string, the help string is displayed instead of calling callback. This behavior can be customized by developer. See example for details.
+
+Last record in the command tree must have `level` field equal to `-1`. 
+The content of `data` field in the last record is used as a general "help" command. Example: if you set this field to `sos`, then the user can type `sos<Enter>` to see general help message, or `sos [command]<Enter>` to receive assistance with a particular command.
+The `help` field in the last record, if `!= NULL`, should point to the help string for the general help message. It will be shown when the user types `help<Enter>`.
 
 Original Linenoise repository:
 https://github.com/antirez/linenoise
