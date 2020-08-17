@@ -9,11 +9,13 @@ The following additions and changes were made:
 * Help message display for each node record. 
 
 `node_record` structure has the following format:
-  * `level` : number of this argument in the command line that the user is typing, a.k.a. menu level
-  * `data`  : string used for matching to user-typed input. Supports regular expressions. See below for details.
-  * `hint`  : hint for the **NEXT** argument (not the one currently being typed). These hints are displayed while the user is typing
-  * `cb`    : pointer to callback function, or NULL if no callback
-  * `help`  : pointer to string containing help text for this node, or NULL if no help string
+Field name | Description
+-----------|------------
+`level` | number of this argument in the command line that the user is typing, a.k.a. menu level
+`data`  | string used for matching to user-typed input. Supports regular expressions. See below for details.
+`hint`  | hint for the **NEXT** argument (not the one currently being typed). These hints are displayed while the user is typing
+`cb`    | pointer to callback function, or NULL if no callback
+`help`  | pointer to string containing help text for this node, or NULL if no help string
 
 The `data` field supports regular expressions. If used, enclose regular expression into round brackets. Example: `([0-9]+)`
 See example `first.cpp` for more details.
